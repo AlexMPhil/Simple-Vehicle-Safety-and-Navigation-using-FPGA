@@ -12,13 +12,13 @@ module nmea_parse(
 );
 	
 	localparam IDLE = 3'd0;
-	localparam HEADER = 3'd1;
-	localparam CAPTURE = 3'd2;
-	localparam PARSER = 3'd3;
-	localparam DONE = 3'd4;
+	localparam HEADERVIA = 3'd1;
+	localparam HEADER = 3'd2;
+	localparam CAPTURE = 3'd3;
+	localparam PARSER = 3'd4;
+	localparam DONE = 3'd5;
 	
 	reg [7:0] RMC_HEADER[0:5];
-	
 	reg [2:0] state, next_state;
 	
 	// Buffers
@@ -36,15 +36,15 @@ module nmea_parse(
 	reg [3:0] t_index;
 	reg header_check;
 	integer i=0;
-
+	
 	initial begin
-		RMC_HEADER[0] = 8'h24;
-		RMC_HEADER[1] = 8'h47;
-		RMC_HEADER[2] = 8'h50;
-		RMC_HEADER[3] = 8'h52;
-		RMC_HEADER[4] = 8'h4D;
-		RMC_HEADER[5] = 8'h43; 
-	end	
+    RMC_HEADER[0] = 8'h47;
+	 RMC_HEADER[1] = 8'h50;
+    RMC_HEADER[2] = 8'h52;
+    RMC_HEADER[3] = 8'h4D;
+    RMC_HEADER[4] = 8'h43;
+    RMC_HEADER[5] = 8'h2C; 
+	end
 	
 	always @(posedge clk or posedge rst) begin
 		if (rst) begin
@@ -57,9 +57,10 @@ module nmea_parse(
 	always @(*) begin
 		//next_state <= state;
 		case(state)
-			IDLE: if (valid && char== 8'h24) next_state = HEADER;
+			IDLE: if (valid && char== 8'h24) next_state = HEADERVIA;
+			HEADERVIA: next_state <= HEADER;
 			HEADER: if (header_check) next_state = CAPTURE;
-			CAPTURE: if (comma_check == 1) next_state = PARSER;
+			CAPTURE: if (comma_check == 2) next_state = PARSER;
 			PARSER: if (t_index == 6) next_state <= DONE;
 			DONE: next_state <= IDLE;
 			default: next_state <= IDLE;
@@ -88,10 +89,11 @@ module nmea_parse(
 				end
 				
 				HEADER: begin
-					if (valid && buff_index < 6) begin
+					$display("RMC_HEADER[buff_index]=%0h CHAR=%0h VALID=%b", RMC_HEADER[buff_index], char, valid);
+					if (valid && buff_index < 5) begin
 						if (char == RMC_HEADER[buff_index]) begin
 							buff_index <= buff_index + 1;
-							if (buff_index == 5) header_check <= 1;
+							if (buff_index == 4) header_check <= 1;
 						end else begin
 							buff_index <= 0;
 						end
@@ -101,8 +103,9 @@ module nmea_parse(
 				CAPTURE: begin
 					if (valid) begin
 						$display("char=%c comma=%0d t_index=%0d", char, comma_check, t_index);
-						if (char == ",") begin
+						if (char == 8'h2C) begin
 							comma_check <= comma_check + 1;
+							$display("comma +1");
 						end else if (comma_check == 1 && t_index < 6) begin
 							time_field[t_index] <= char;
 							t_index <= t_index + 1;
