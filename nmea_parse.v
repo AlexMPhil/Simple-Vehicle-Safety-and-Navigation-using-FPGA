@@ -17,7 +17,7 @@ module nmea_parse(
 	localparam PARSER = 3'd3;
 	localparam DONE = 3'd4;
 	
-	localparam [7:0] RMC_HEADER[0:5] = {8'h47, 8'h50, 8'h52, 8'h4D, 8'h43};
+	reg [7:0] RMC_HEADER[0:5];
 	
 	reg [2:0] state, next_state;
 	
@@ -36,6 +36,15 @@ module nmea_parse(
 	reg [3:0] t_index;
 	reg header_check;
 	integer i=0;
+
+	initial begin
+		RMC_HEADER[0] = 8'h24;
+		RMC_HEADER[1] = 8'h47;
+		RMC_HEADER[2] = 8'h50;
+		RMC_HEADER[3] = 8'h52;
+		RMC_HEADER[4] = 8'h4D;
+		RMC_HEADER[5] = 8'h43; 
+	end	
 	
 	always @(posedge clk or posedge rst) begin
 		if (rst) begin
