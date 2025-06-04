@@ -10,6 +10,8 @@ module nmea_tb();
     wire [4:0] hr;
     wire [5:0] min;
 	 wire [5:0] sec;
+	 
+	 reg sig_flag=0;
     
 
     // Instantiate your DUT (Device Under Test)
@@ -26,7 +28,7 @@ module nmea_tb();
 
     // Clock generator (50MHz)
     initial clk = 0;
-	 always #10 clk = ~clk;
+	 always #20 clk = ~clk;
 	 
 	 task send_char(input [7:0] c);
 	 begin
@@ -121,6 +123,7 @@ module nmea_tb();
 	 // Simulation sequence
         $display("Starting simulation...");
         
+		  sig_flag=0;
 		  valid = 0;
 		  char = 8'd0;
 		  rst = 1;
@@ -130,17 +133,17 @@ module nmea_tb();
 		  
 		  for (i=0; i <= 69; i = i+1) begin
 				send_char(sentence[i]);
+				if (NSR == 1) sig_flag = 1;
 				#20;
 		  end
 		 
 		  #100;
 		  
-		  if (NSR == 1 && hr == 12 && min == 35 && sec == 19) begin
+		  if (sig_flag == 1 && hr == 12 && min == 35 && sec == 19) begin
 				$display ("Test Passed: hr=%0d min=%0d sec=%0d", hr, min, sec);
 		  end else begin
 				$display ("Test Failed: hr=%0d min=%0d sec=%0d", hr, min, sec);
 		  end
-		  
 		  $finish;
 	 end
 
