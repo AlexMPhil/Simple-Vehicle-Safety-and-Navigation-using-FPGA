@@ -42,21 +42,29 @@ module gps_reciever
 	);
 	
 	reg [7:0] led_disp;
+	reg gps_NSR_hold;
 	
 	always @(posedge clk or posedge rst) begin
 		
-		if (rst) led_disp <= 8'h00;
+		if (rst) begin
+			led_disp <= 8'h00;
+			gps_NSR_hold <= 1'b0;
 		
-		else if (gps_NSR) begin
 		
-			case(switches)
-				4'b1111: led_disp <= (gps_hr==10) ? 8'hff : 8'h00;
-				4'b1000: led_disp <= {3'b000,gps_hr};
-				4'b0100: led_disp <= {2'b00,gps_min};
-				4'b0010: led_disp <= {2'b00,gps_sec};
-				4'b0000: led_disp <= 8'h66;
-				default: led_disp <= 8'h00;
-			endcase
+		end else begin
+			if (gps_NSR) gps_NSR_hold <= 1'b1;
+		
+			if (gps_NSR_hold) begin
+			
+				case(switches)
+					4'b1111: led_disp <= (gps_hr==4) ? 8'hff : 8'h00;
+					4'b1000: led_disp <= {3'b000,gps_hr};
+					4'b0100: led_disp <= {2'b00,gps_min};
+					4'b0010: led_disp <= {2'b00,gps_sec};
+					4'b0000: led_disp <= 8'h66;
+					default: led_disp <= 8'h00;
+				endcase
+			end
 		end
 	end
 	
