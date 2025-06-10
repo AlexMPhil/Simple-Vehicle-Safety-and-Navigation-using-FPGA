@@ -34,6 +34,11 @@ module nmea_parse(
 	reg [6:0] buff_index;
 	reg [3:0] comma_check;
 	reg [3:0] t_index;
+	reg [2:0] header_miss;
+	
+	reg [4:0] IST_hr;
+	reg [5:0] IST_min;
+	
 	reg header_check;
 	integer i=0;
 	
@@ -46,8 +51,8 @@ module nmea_parse(
     RMC_HEADER[5] = 8'h2C; 
 	end
 	
-	always @(posedge clk or posedge rst) begin
-		if (rst) begin
+	always @(posedge clk or negedge rst) begin
+		if (!rst) begin
 			state <= IDLE;
 		end else begin
 			state <= next_state;
@@ -58,18 +63,21 @@ module nmea_parse(
 		//next_state <= state;
 		case(state)
 			IDLE: if (valid && char== 8'h24) next_state = HEADERVIA;
-			HEADERVIA: next_state <= HEADER;
-			HEADER: if (header_check) next_state = CAPTURE;
+			HEADERVIA: next_state = HEADER;
+			HEADER: begin
+				if (header_check) next_state = CAPTURE;
+				else if (header_miss >= 3) next_state = IDLE;
+			end
 			CAPTURE: if (comma_check == 2) next_state = PARSER;
-			PARSER: if (t_index == 6) next_state <= DONE;
-			DONE: next_state <= IDLE;
-			default: next_state <= IDLE;
+			PARSER: if (t_index == 6) next_state = DONE;
+			DONE: next_state = IDLE;
+			default: next_state = IDLE;
 		endcase
 	end
 	
-	always @(posedge clk or posedge rst) begin
+	always @(posedge clk or negedge rst) begin
 	$display("TIME=%0t STATE=%0d CHAR=%c VALID=%b", $time, state, char, valid);
-		if (rst) begin
+		if (!rst) begin
 			buff_index <= 0;
 			comma_check <= 0;
 			header_check <= 0;
@@ -85,6 +93,7 @@ module nmea_parse(
 					comma_check <= 0;
 					header_check <= 0;
 					t_index <= 0;
+					header_miss = 0;
 					NSR <= 0;
 				end
 				
@@ -93,8 +102,10 @@ module nmea_parse(
 					if (valid && buff_index < 5) begin
 						if (char == RMC_HEADER[buff_index]) begin
 							buff_index <= buff_index + 1;
+							header_miss <= 0;
 							if (buff_index == 4) header_check <= 1;
 						end else begin
+							header_miss <= header_miss + 1;
 							buff_index <= 0;
 						end
 					end
@@ -106,7 +117,7 @@ module nmea_parse(
 						if (char == 8'h2C) begin
 							comma_check <= comma_check + 1;
 							$display("comma +1");
-						end else if (comma_check == 1 && t_index < 6) begin
+						end else if (comma_check == 1 && t_index < 6) begin    //comma_check==1 means time field
 							time_field[t_index] <= char;
 							t_index <= t_index + 1;
 							
@@ -117,15 +128,34 @@ module nmea_parse(
 				end
 				
 				PARSER: begin
+					//Time Field analysis
 					hr <= (time_field[0] - "0") * 10 + (time_field[1] - "0");
 					min <= (time_field[2] - "0") * 10 + (time_field[3] - "0");
 					sec <= (time_field[4] - "0") * 10 + (time_field[5] - "0");
+					
+					//GPS time will be in UTC, IST = UTC + 5:30
+					/*
+					IST_min = min + 30;
+					if (IST_min >= 60) begin
+						IST_min = IST_min - 60;
+						IST_hr = hr + 6;  // 5 for IST and 1 for carry over
+					end
+					else begin
+						IST_hr = hr + 5;
+					end
+					if (IST_hr >= 24) begin
+						IST_hr = IST_hr - 24;
+					end
+					
+					hr <= IST_hr;
+					min <=IST_min;
+					*/ 
 				end
 				
 				DONE: begin
 					NSR <= 1;
-				
 				end
+				
 			endcase
 		end
 	end
