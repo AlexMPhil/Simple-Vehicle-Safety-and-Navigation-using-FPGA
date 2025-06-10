@@ -43,19 +43,21 @@ module gps_reciever
 	
 	reg [7:0] led_disp;
 	
-	always @(*) begin
-		led_disp = 8'h00;
+	always @(posedge clk or posedge rst) begin
 		
-		case(switches)
-			4'b1111: begin
-				if (gps_hr==10) led_disp = 8'hff;
-			end
-			4'b1000: led_disp = {3'b000,gps_hr};
-			4'b0100: led_disp = {2'b00,gps_min};
-			4'b0010: led_disp = {2'b00,gps_sec};
-			4'b0000: led_disp = 8'h66;
-			default: led_disp = 8'h00;
-		endcase
+		if (rst) led_disp <= 8'h00;
+		
+		else if (gps_NSR) begin
+		
+			case(switches)
+				4'b1111: led_disp <= (gps_hr==10) ? 8'hff : 8'h00;
+				4'b1000: led_disp <= {3'b000,gps_hr};
+				4'b0100: led_disp <= {2'b00,gps_min};
+				4'b0010: led_disp <= {2'b00,gps_sec};
+				4'b0000: led_disp <= 8'h66;
+				default: led_disp <= 8'h00;
+			endcase
+		end
 	end
 	
 	assign gps_out = led_disp;
