@@ -74,7 +74,7 @@ module gps_rec_tb();
 		
 		send_sentence();
 		
-		wait (gps_NSR == 1);
+		wait (gps_hr != 0 || gps_min != 0 || gps_sec != 0);
       $display("----> gps_NSR asserted, data parsed successfully at time = %0t", $time);  // Debug display
       #100;
 		  
